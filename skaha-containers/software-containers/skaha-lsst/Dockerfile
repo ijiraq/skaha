@@ -1,4 +1,4 @@
-FROM lsstsqre/centos:7-stack-lsst_distrib-v21_0_0
+FROM lsstsqre/centos:7-stack-lsst_distrib-v19_0_0
 USER root
 # install git-lfs using package cloud
 RUN yum -y install sudo.x86_64
@@ -14,6 +14,22 @@ RUN yum install -y sssd-client acl
 # need an xterm at least
 RUN yum -y install xterm 
 
+# install sextractor
+RUN yum -y install atlas-devel
+RUN yum -y install fftw-devel
+RUN yum -y install autoconf
+RUN yum -y install automake
+RUN yum -y install libtool
+WORKDIR "tmp"
+RUN curl -L https://github.com/astromatic/sextractor/archive/refs/tags/2.25.0.tar.gz -o 2.25.0.tar.gz
+RUN tar xvf 2.25.0.tar.gz 
+WORKDIR "sextractor-2.25.0"
+RUN sh autogen.sh
+RUN ./configure 
+RUN make
+RUN make install
+
+
 # system settings and permissions
 COPY src/nofiles.conf /etc/security/limits.d/
 
@@ -21,11 +37,13 @@ COPY src/nofiles.conf /etc/security/limits.d/
 RUN touch /etc/sudo.conf && echo "Set disable_coredump false" > /etc/sudo.conf
 
 # generate missing dbus uuid (issue #47)
-RUN dbus-uuidgen --ensure
 
 ADD nsswitch.conf /etc/
 COPY src/start_lsst.sh /etc/profile.d/
 
-USER lsst
+RUN source /etc/profile.d/start_lsst.sh; conda install scikit-image numba tk
+RUN source /etc/profile.d/start_lsst.sh; yum -y install parallel
+
+# USER lsst
 CMD [ "bash" ]
 
